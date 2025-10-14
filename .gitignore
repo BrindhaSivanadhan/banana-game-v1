@@ -1,0 +1,20 @@
+# node / vendor
+node_modules/
+vendor/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# PHPstorm / VSCode
+.vscode/
+.idea/
+
+# Ignore config with secrets
+config.php
+
+# images that might be large (optional)
+images/
