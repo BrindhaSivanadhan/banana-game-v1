@@ -1,7 +1,7 @@
 <?php
 ob_start();
-session_start();
 include 'config.php';
+session_start();
 
 $err = "";
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
@@ -18,8 +18,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             $row = $res->fetch_assoc();
             if (password_verify($password, $row['password'])) {
                 $_SESSION['username'] = $username;
+
+                // PHP redirect (preferred)
                 header("Location: select_difficulty.php");
                 exit();
+
+                // If header fails, JS fallback (kept for safety)
+                // echo "<script>window.location.href='select_difficulty.php';</script>";
+                // exit();
             } else {
                 $err = "Invalid password.";
             }
@@ -27,21 +33,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             $err = "User not found.";
         }
     } else {
-        $err = "DB error.";
+        $err = "Database error.";
     }
 }
+$registered = isset($_GET['registered']) ? true : false;
 ?>
 <!doctype html>
 <html>
-<head><meta charset="utf-8"/><title>Login</title></head>
-<body>
-  <h2>Login</h2>
-  <?php if($err): ?><p style="color:red;"><?=htmlspecialchars($err)?></p><?php endif; ?>
-  <form method="POST">
-    <input name="username" required placeholder="Username"><br>
-    <input name="password" type="password" required placeholder="Password"><br>
-    <button name="login" type="submit">Login</button>
-  </form>
-  <p>No account? <a href="register.php">Register</a></p>
+<head>
+  <meta charset="utf-8"/>
+  <title>Login — Banana Game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-bg">
+  <div class="login-modal">
+    <img src="banana_logo.png" alt="Banana Logo" class="banana-logo">
+    <h3>Login</h3>
+
+    <?php if($registered): ?><p class="success">Registration successful. Please login.</p><?php endif; ?>
+    <?php if($err): ?><p class="error"><?=htmlspecialchars($err)?></p><?php endif; ?>
+
+    <form method="POST" class="login-form">
+      <label>Username: <input name="username" required></label>
+      <label>Password: <input name="password" type="password" required></label>
+      <div class="login-actions">
+        <button name="login" type="submit" class="btn primary">Login</button>
+        <a href="register.php" class="btn secondary">Register</a>
+      </div>
+    </form>
+  </div>
 </body>
 </html>
+<?php ob_end_flush(); ?>

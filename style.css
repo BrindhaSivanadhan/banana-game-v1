@@ -1,0 +1,218 @@
+/* ==============================
+   Banana Game - Pastel Theme
+   ============================== */
+
+body {
+    font-family: "Poppins", "Segoe UI", sans-serif;
+    background: #f9fafc;
+    margin: 0;
+    padding: 0;
+    color: #333;
+}
+
+/* Generic container */
+.container {
+    max-width: 860px;
+    margin: 40px auto;
+    background: #ffffff;
+    padding: 28px;
+    border-radius: 16px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    text-align: center;
+    transition: 0.3s ease;
+}
+
+.container:hover {
+    transform: translateY(-3px);
+}
+
+/* Smaller box for forms */
+.container.small {
+    width: 380px;
+    margin: 60px auto;
+}
+
+input {
+    width: calc(100% - 20px);
+    padding: 10px;
+    margin: 8px 0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #f7f8fc;
+    transition: 0.2s;
+}
+
+input:focus {
+    border-color: #a7c7e7;
+    background: #ffffff;
+    outline: none;
+}
+
+button {
+    background: #a7c7e7;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #fff;
+    transition: 0.2s;
+}
+
+button:hover {
+    background: #93bde4;
+}
+
+/* ==============================
+   Login Modal Style
+   ============================== */
+body.login-bg {
+    background: linear-gradient(180deg, #fdfbfb 0%, #ebedee 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+
+.login-modal {
+    width: 420px;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.banana-logo {
+    width: 80px;
+    height: 80px;
+    margin: -50px auto 10px;
+    display: block;
+    border-radius: 50%;
+    background: #fff8e1;
+    box-shadow: 0 5px 15px rgba(255, 200, 0, 0.2);
+}
+
+.login-form label {
+    display: block;
+    text-align: left;
+    margin-top: 10px;
+}
+
+.login-form input {
+    width: 100%;
+}
+
+.login-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: 0.2s;
+}
+
+.btn.primary {
+    background: #b3e5fc;
+    color: #03396c;
+}
+
+.btn.primary:hover {
+    background: #a0d9f7;
+}
+
+.btn.secondary {
+    background: #ffd6e0;
+    color: #6b305d;
+}
+
+.btn.secondary:hover {
+    background: #ffcad8;
+}
+
+/* ==============================
+   Messages
+   ============================== */
+.error {
+    color: #e57373;
+    font-weight: 500;
+}
+
+.success {
+    color: #81c784;
+    font-weight: 500;
+}
+
+/* ==============================
+   Difficulty Selection
+   ============================== */
+.container.wide {
+    background: #ffffff;
+    padding: 36px;
+}
+
+.top-right {
+    position: absolute;
+    top: 20px;
+    right: 25px;
+}
+
+.small-btn {
+    background: #b2ebf2;
+    color: #004d40;
+    padding: 8px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: 0.3s;
+}
+
+.small-btn:hover {
+    background: #9be0e8;
+}
+
+.difficulty-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-top: 40px;
+}
+
+.difficulty {
+    display: block;
+    padding: 36px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 20px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s;
+}
+
+.difficulty:hover {
+    transform: scale(1.02);
+}
+
+.difficulty.beginner {
+    background: #d1f7c4;
+    /* pastel green */
+    color: #355e3b;
+}
+
+.difficulty.intermediate {
+    background: #fff3b0;
+    /* pastel yellow */
+    color: #7a5f00;
+}
+
+.difficulty.advanced {
+    background: #ffd6a5;
+    /* pastel peach */
+    color: #784212;
+}
