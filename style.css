@@ -216,3 +216,65 @@ body.login-bg {
     /* pastel peach */
     color: #784212;
 }
+
+/* ==============================
+   Puzzle
+   ============================== */
+#puzzle-container {
+    display: grid;
+    gap: 6px;
+    margin: 25px auto;
+}
+
+.tile {
+    background: #bde0fe;
+    color: #03396c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 22px;
+    font-weight: 600;
+    height: 80px;
+    transition: 0.2s;
+    cursor: pointer;
+}
+
+.tile:hover {
+    background: #a2d2ff;
+}
+
+.puzzle-controls {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+}
+
+.puzzle-controls button {
+    background: #cdb4db;
+    color: #4a148c;
+}
+
+.puzzle-controls button:hover {
+    background: #b39ddb;
+}
+
+/* ==============================
+   Links & Buttons
+   ============================== */
+.big-link {
+    display: inline-block;
+    margin: 10px;
+    padding: 10px 18px;
+    background: #ffc8dd;
+    color: #3b1c32;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: 0.3s;
+}
+
+.big-link:hover {
+    background: #ffafcc;
+}
