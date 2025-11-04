@@ -64,4 +64,4 @@ $registered = isset($_GET['registered']) ? true : false;
   </div>
 </body>
 </html>
-<?php ob_end_flush(); ?>
+<?php ob_end_flush(); ?> 
