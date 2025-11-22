@@ -1,0 +1,171 @@
+<?php
+// Securely protect page
+include 'config.php';
+include 'session.php';
+require_login(); // redirects to login.php if user is not logged in
+
+$username = $_SESSION['username'];
+?>
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Advanced Equation Game — Banana API</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body { font-family: "Poppins", "Segoe UI", Arial, sans-serif; background: linear-gradient(180deg,#fffceb,#ffe7c2); margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; }
+    .card { background:#fff; width:820px; max-width:96%; border-radius:16px; padding:28px; box-shadow:0 12px 40px rgba(20,30,50,0.08); text-align:center; }
+    h1{margin:0;font-size:30px;color:#2a2a2a}
+    .time, .lives{color:#5b6b7a;margin:12px 0 20px 0;font-weight:600;font-size:18px}
+    .banana-image{width:260px;height:260px;object-fit:contain;border-radius:10px;margin-bottom:16px;box-shadow:0 8px 20px rgba(0,0,0,0.05)}
+    .digits{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:10px}
+    .digit-btn{background:linear-gradient(180deg,#bde0fe,#a6d2fc);border:none;padding:14px;border-radius:10px;font-size:20px;font-weight:700;cursor:pointer;color:#03396c;box-shadow:0 8px 18px rgba(10,20,40,0.04)}
+    .controls{display:flex;justify-content:center;gap:20px;margin-top:24px; flex-wrap:wrap;}
+    .btn{padding:10px 16px;border-radius:10px;font-weight:700;border:none;cursor:pointer}
+    .btn.next{background:#ffd6a5;color:#603000}
+    .btn.leader{background:#cde3ff;color:#023047}
+    .message{margin-top:16px;font-weight:700;font-size:18px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Advanced Equation Game - Harder Mode</h1>
+    <div class="time">Time: <span id="timer">15</span> s</div>
+    <div class="lives">Lives: <span id="lives">5</span></div>
+
+    <div class="game-area">
+      <div class="subtitle">Guess the Missing Value</div>
+      <img id="bananaImage" class="banana-image" alt="Banana equation" src="">
+      <div class="digits" id="digits"></div>
+      <div id="feedback" class="message"></div>
+    </div>
+
+    <div class="controls">
+      <div style="display:flex; gap:12px;">
+        <button id="nextBtn" class="btn next">Next Game</button>
+        <button onclick="location.href='logout.php'" class="btn next">Logout</button>
+      </div>
+      <button id="leaderBtn" class="btn leader">Leaderboard</button>
+    </div>
+  </div>
+
+<script>
+/* === Config === */
+const TIME_LIMIT = 15; // Advanced mode
+let timer = TIME_LIMIT, timerInterval = null;
+let correctAnswer = null;
+const POINTS_ON_CORRECT = 40;
+let lives = 5;
+
+function extractFirstInt(x){
+  if (x === null || x === undefined) return NaN;
+  if (Array.isArray(x)) x = x.join(" ");
+  let s = String(x);
+  const m = s.match(/-?\d+/);
+  return m ? parseInt(m[0],10) : NaN;
+}
+
+async function fetchQuestion(){
+  setDigitsEnabled(false);
+  document.getElementById('feedback').textContent = 'Loading...';
+  correctAnswer = null;
+  try{
+    const res = await fetch('https://marcconrad.com/uob/banana/api.php');
+    const data = await res.json();
+    const img = data.question || data.img || data.image || '';
+    document.getElementById('bananaImage').src = img;
+    let parsed = NaN;
+    if (data.solution !== undefined) parsed = extractFirstInt(data.solution);
+    if (isNaN(parsed) && data.answer !== undefined) parsed = extractFirstInt(data.answer);
+    if (isNaN(parsed)) parsed = extractFirstInt(JSON.stringify(data));
+    correctAnswer = Number.isNaN(parsed) ? null : parsed;
+    if (correctAnswer === null) {
+      document.getElementById('feedback').textContent = 'Could not parse answer from API. See console.';
+      setDigitsEnabled(false);
+    } else {
+      document.getElementById('feedback').textContent = '';
+      setDigitsEnabled(true);
+    }
+  } catch(err){
+    console.error('Error fetching:', err);
+    document.getElementById('feedback').textContent = 'Failed to load question.';
+    setDigitsEnabled(false);
+  }
+}
+
+function renderDigits(){
+  const container = document.getElementById('digits');
+  container.innerHTML = '';
+  for(let i=0;i<=9;i++){
+    const btn = document.createElement('button');
+    btn.className = 'digit-btn';
+    btn.type = 'button';
+    btn.textContent = i;
+    btn.dataset.value = i;
+    btn.disabled = true;
+    btn.addEventListener('click', onDigitClick);
+    container.appendChild(btn);
+  }
+}
+
+function setDigitsEnabled(enabled){
+  document.querySelectorAll('#digits .digit-btn').forEach(b => b.disabled = !enabled);
+}
+
+function onDigitClick(e){
+  const value = parseInt(e.currentTarget.dataset.value,10);
+  const correct = parseInt(correctAnswer,10);
+  if (Number.isNaN(correct)){
+    document.getElementById('feedback').textContent = 'Answer not ready.';
+    return;
+  }
+  if (value === correct){
+    document.getElementById('feedback').textContent = '✅ Correct! Points awarded.';
+    setDigitsEnabled(false);
+    stopTimer();
+    fetch('update_points.php', {
+      method:'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ level: 'advanced', points: POINTS_ON_CORRECT })
+    }).then(r=>r.json()).catch(()=>{});
+  } else {
+    lives--;
+    document.getElementById('lives').textContent = lives;
+    document.getElementById('feedback').textContent = `❌ Wrong! Life lost.`;
+    if(lives <= 0){
+      endGame();
+    }
+  }
+}
+
+function startTimer(){
+  timer = TIME_LIMIT;
+  document.getElementById('timer').textContent = timer;
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(()=> {
+    timer--;
+    document.getElementById('timer').textContent = timer;
+    if (timer <= 0){
+      clearInterval(timerInterval);
+      alert("⏰ Time up! Returning to difficulty selection.");
+      window.location.href = 'select_difficulty.php';
+    }
+  },1000);
+}
+
+function stopTimer(){ if (timerInterval) clearInterval(timerInterval); }
+
+document.getElementById('nextBtn').addEventListener('click', async ()=>{
+  await fetchQuestion(); 
+  startTimer(); 
+  document.getElementById('feedback').textContent = '';
+});
+
+document.getElementById('leaderBtn').addEventListener('click', ()=>{ window.location.href = 'leaderboard.php'; });
+
+renderDigits();
+fetchQuestion();
+startTimer();
+</script>
+</body>
+</html>
