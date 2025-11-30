@@ -1,9 +1,8 @@
 <?php
-session_start();
-if (!isset($_SESSION['username'])) {
-    header("Location: login.php");
-    exit();
-}
+include 'config.php';
+include 'session.php';
+require_login();
+$username = $_SESSION['username'];
 ?>
 <!doctype html>
 <html>
@@ -14,7 +13,7 @@ if (!isset($_SESSION['username'])) {
 </head>
 <body>
   <div class="container">
-    <h1>Welcome, <?=htmlspecialchars($_SESSION['username'])?>!</h1>
+    <h1>Welcome, <?=htmlspecialchars($username)?>!</h1>
     <p>
       <a class="big-link" href="select_difficulty.php">Play Puzzle</a>
       <a class="big-link" href="banana.php">Play Banana Game</a>

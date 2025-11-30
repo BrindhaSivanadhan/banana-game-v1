@@ -1,11 +1,12 @@
 <?php
 session_start();
 include 'config.php';
+include 'session.php';
 
 header('Content-Type: application/json');
 
 // Make sure user is logged in
-if (!isset($_SESSION['username'])) {
+if (!is_logged_in()) {
     echo json_encode(["error" => "Not logged in"]);
     exit;
 }
