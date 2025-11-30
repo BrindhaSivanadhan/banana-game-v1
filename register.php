@@ -1,7 +1,8 @@
 <?php
-ob_start(); // start output buffering
+ob_start();
 include 'config.php';
-session_start();
+include 'session.php';
+regenerate_session();
 
 $error = "";
 
@@ -10,13 +11,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $password = $_POST['password'];
     $confirm = $_POST['confirm_password'];
 
-    // Validate
     if ($password !== $confirm) {
         $error = "Passwords do not match.";
     } elseif (strlen($password) < 4) {
         $error = "Password must be at least 4 characters long.";
     } else {
-        // Check if username exists
         $check = $conn->prepare("SELECT id FROM users WHERE username = ?");
         $check->bind_param("s", $username);
         $check->execute();
@@ -25,14 +24,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
         if ($res && $res->num_rows > 0) {
             $error = "Username already taken.";
         } else {
-            // Insert new user
             $hash = password_hash($password, PASSWORD_DEFAULT);
             $stmt = $conn->prepare("INSERT INTO users (username, password) VALUES (?, ?)");
             $stmt->bind_param("ss", $username, $hash);
 
             if ($stmt->execute()) {
-                //  Auto-login immediately after registration
-                $_SESSION['username'] = $username;
+                login_user($username);
+
+                // Move any guest progress into the new account immediately
+                if (!empty($_SESSION['guest_pending_points']) && is_array($_SESSION['guest_pending_points'])) {
+                    $allowedLevels = ['beginner', 'intermediate', 'advanced'];
+                    $recovered = [];
+
+                    foreach ($_SESSION['guest_pending_points'] as $lvl => $pts) {
+                        $points = (int)$pts;
+                        if ($points <= 0 || !in_array($lvl, $allowedLevels, true)) {
+                            continue;
+                        }
+                        $column = $lvl . '_points';
+                        $updateSql = "UPDATE users SET $column = $column + ? WHERE username = ?";
+                        $updateStmt = $conn->prepare($updateSql);
+                        if ($updateStmt) {
+                            $updateStmt->bind_param("is", $points, $username);
+                            $updateStmt->execute();
+                            if ($updateStmt->affected_rows > 0) {
+                                $recovered[] = ucfirst($lvl) . " +" . $points;
+                            }
+                            $updateStmt->close();
+                        }
+                    }
+
+                    if (!empty($recovered)) {
+                        $_SESSION['flash_message'] = "Guest progress recovered: " . implode(', ', $recovered);
+                        $_SESSION['flash_message_type'] = 'success';
+                    }
+
+                    unset($_SESSION['guest_pending_points']);
+                }
+
                 header("Location: select_difficulty.php");
                 exit();
             } else {
@@ -46,35 +75,327 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
 <html>
 <head>
   <meta charset="utf-8"/>
-  <title>Register — Banana Game</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Register — Banana Bliss</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    body {font-family:Poppins,sans-serif;background:#f9fafc;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;}
-    .register-box {background:white;border-radius:20px;padding:40px;width:360px;box-shadow:0 8px 24px rgba(0,0,0,0.08);text-align:center;}
-    h2 {margin-bottom:20px;color:#333;}
-    input {width:100%;padding:10px;margin:8px 0;border-radius:8px;border:1px solid #ccc;}
-    button {background:#bde0fe;color:#333;padding:10px 18px;border:none;border-radius:10px;font-weight:600;cursor:pointer;}
-    button:hover {background:#a6d2fc;}
-    .error {color:#ff4d4d;font-weight:600;}
-    a {color:#444;text-decoration:none;font-size:14px;}
+    * { box-sizing: border-box; }
+    
+    :root {
+      --banana-yellow: #FFE135;
+      --banana-dark: #FFB800;
+      --banana-light: #FFF4A3;
+      --bg-dark: #3a2f1a;
+      --bg-darker: #2d2415;
+      --text-light: #fff9e6;
+      --text-muted: #d4c5a0;
+    }
+
+    html, body { 
+      height: 100%; 
+      margin: 0;
+      overflow: hidden;
+    }
+    
+    body {
+      font-family: "Fredoka", sans-serif;
+      background: linear-gradient(135deg, #2d2415 0%, #3a2f1a 50%, #4a3d20 100%);
+      color: var(--text-light);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      padding: 20px;
+    }
+
+    /* Floating banana background */
+    .bg-bananas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    
+    .floating-banana {
+      position: absolute;
+      font-size: 40px;
+      opacity: 0.15;
+      animation: float 20s infinite ease-in-out;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      25% { transform: translateY(-30px) rotate(5deg); }
+      50% { transform: translateY(-60px) rotate(-5deg); }
+      75% { transform: translateY(-30px) rotate(3deg); }
+    }
+
+    /* Register box */
+    .register-container {
+      position: relative;
+      z-index: 1;
+      width: 95%;
+      max-width: 420px;
+      animation: slideIn 0.6s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .register-box {
+      background: rgba(255, 244, 163, 0.1);
+      backdrop-filter: blur(15px);
+      border-radius: 24px;
+      padding: 35px 32px;
+      border: 1px solid rgba(255, 225, 53, 0.2);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      text-align: center;
+    }
+
+    /* Logo and title */
+    .logo-section {
+      margin-bottom: 24px;
+    }
+
+    .banana-icon {
+      font-size: 48px;
+      animation: bounce 2s infinite;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    h2 {
+      margin: 0 0 6px 0;
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--banana-yellow) 0%, var(--banana-dark) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    /* Error message */
+    .error {
+      background: rgba(255, 82, 82, 0.15);
+      border: 1px solid rgba(255, 82, 82, 0.4);
+      color: #ff8a8a;
+      padding: 10px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 16px;
+      animation: shake 0.5s;
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-8px); }
+      50% { transform: translateX(8px); }
+      75% { transform: translateX(-8px); }
+    }
+
+    /* Form styling */
+    form {
+      margin-bottom: 18px;
+    }
+
+    .input-group {
+      margin-bottom: 14px;
+      text-align: left;
+    }
+
+    label {
+      display: block;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 5px;
+      margin-left: 4px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 2px solid rgba(255, 225, 53, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-light);
+      font-size: 14px;
+      font-weight: 600;
+      font-family: "Fredoka", sans-serif;
+      transition: all 0.3s ease;
+    }
+    
+    input::placeholder {
+      color: rgba(212, 197, 160, 0.5);
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: var(--banana-yellow);
+      background: rgba(255, 225, 53, 0.08);
+      box-shadow: 0 0 0 4px rgba(255, 225, 53, 0.1);
+    }
+
+    /* Button */
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--banana-yellow) 0%, var(--banana-dark) 100%);
+      color: #3a2f1a;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: "Fredoka", sans-serif;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 30px rgba(255, 225, 53, 0.3);
+      margin-top: 8px;
+    }
+    
+    button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(255, 225, 53, 0.4);
+    }
+    
+    button:active {
+      transform: translateY(-1px);
+    }
+
+    /* Footer link */
+    .footer-text {
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 18px;
+    }
+    
+    .footer-text a {
+      color: var(--banana-yellow);
+      text-decoration: none;
+      font-weight: 700;
+      transition: all 0.2s ease;
+    }
+    
+    .footer-text a:hover {
+      color: var(--banana-light);
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .register-box {
+        padding: 35px 25px;
+        border-radius: 24px;
+      }
+      
+      .banana-icon {
+        font-size: 50px;
+      }
+      
+      h2 {
+        font-size: 28px;
+      }
+      
+      input {
+        padding: 12px 14px;
+        font-size: 14px;
+      }
+      
+      button {
+        padding: 14px;
+        font-size: 16px;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="register-box">
-    <h2>Create Account</h2>
+  <!-- Floating banana background -->
+  <div class="bg-bananas">
+    <div class="floating-banana" style="top: 10%; left: 5%;">🍌</div>
+    <div class="floating-banana" style="top: 20%; right: 8%; animation-delay: -5s;">🍌</div>
+    <div class="floating-banana" style="top: 60%; left: 10%; animation-delay: -10s;">🍌</div>
+    <div class="floating-banana" style="top: 70%; right: 15%; animation-delay: -15s;">🍌</div>
+    <div class="floating-banana" style="top: 40%; left: 85%; animation-delay: -7s;">🍌</div>
+    <div class="floating-banana" style="top: 85%; left: 50%; animation-delay: -12s;">🍌</div>
+  </div>
 
-    <?php if($error): ?>
-      <p class="error"><?= htmlspecialchars($error) ?></p>
-    <?php endif; ?>
+  <div class="register-container">
+    <div class="register-box">
+      <!-- Logo section -->
+      <div class="logo-section">
+        <div class="banana-icon">🍌</div>
+        <h2>Banana Bliss</h2>
+        <p class="subtitle">Create your account to start playing</p>
+      </div>
 
-    <form method="POST">
-      <input type="text" name="username" placeholder="Enter username" required>
-      <input type="password" name="password" placeholder="Enter password" required>
-      <input type="password" name="confirm_password" placeholder="Confirm password" required>
-      <button type="submit" name="register">Register</button>
-    </form>
+      <!-- Error message -->
+      <?php if($error): ?>
+        <div class="error">⚠️ <?= htmlspecialchars($error) ?></div>
+      <?php endif; ?>
 
-    <p style="margin-top:10px;">Already have an account? <a href="login.php">Login here</a></p>
+      <!-- Registration form -->
+      <form method="POST">
+        <div class="input-group">
+          <label for="username">Username</label>
+          <input 
+            type="text" 
+            id="username"
+            name="username" 
+            placeholder="Choose a username" 
+            required
+            autocomplete="username"
+          >
+        </div>
+
+        <div class="input-group">
+          <label for="password">Password</label>
+          <input 
+            type="password" 
+            id="password"
+            name="password" 
+            placeholder="Create a password" 
+            required
+            autocomplete="new-password"
+          >
+        </div>
+
+        <div class="input-group">
+          <label for="confirm_password">Confirm Password</label>
+          <input 
+            type="password" 
+            id="confirm_password"
+            name="confirm_password" 
+            placeholder="Confirm your password" 
+            required
+            autocomplete="new-password"
+          >
+        </div>
+
+        <button type="submit" name="register">🎮 Create Account</button>
+      </form>
+
+      <!-- Footer -->
+      <p class="footer-text">
+        Already have an account? <a href="login.php">Login here</a>
+      </p>
+    </div>
   </div>
 </body>
 </html>
